@@ -1,0 +1,6 @@
+# Open data science course
+
+*In this course we will be introduced to the various aspects of open data science, including data wrangling and data analysis*
+
+[MyGithub_Diary](https://Rigbe-ods.github.io/IODS-project/)
+
