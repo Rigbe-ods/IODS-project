@@ -2,7 +2,7 @@
 # Open data science course
 ## Chapter 1
 
-*In this course we will be introduced to the various aspects of open data science, including data wrangling and data analysis
+*In this course we will be introduced to the various aspects of open data science, including data wrangling and data analysis.
 In this chaper, the focus will be on the different tools required in this course including R, Rstudio, git etc.*
 
 [MyGithub_link](https://github.com/Rigbe-ods/IODS-project)
