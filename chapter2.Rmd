@@ -1,7 +1,132 @@
-# Insert chapter 2 title here
+# Chapter 2:Regression and model validation
 
-*Describe the work you have done this week and summarize your learning.*
+In this chapter we will be working with Linear Regression. We will use Linear regression to model the relationship between a dependent variable(exam points) and 3 independent variables including attitude and various kinds of questions (which are the top 3 correlated variables with our dependent variable).
 
-- Describe your work and results clearly. 
-- Assume the reader has an introductory course level understanding of writing and reading R code as well as statistical methods
-- Assume the reader has no previous knowledge of your data or the more advanced methods you are using  
+
+The dataset we used in this chapter can be found at [JYTOPKYS3](http://www.helsinki.fi/~kvehkala/JYTmooc/JYTOPKYS3-meta.txt).
+
+#### Preparing the dataset for the analysis
+
+The dataset found [here](http://www.helsinki.fi/~kvehkala/JYTmooc/JYTOPKYS3-data.txt) was first preprocessed such that we scaled and combined certain variables such as attitude and question types(deep, surf, strat) and used these new variables together with other existing variables such as gender and age for the ensuing analysis. The following script was used for this purpose.
+```{r}
+library(dplyr)
+
+JYTOPKYS3 <- read.table("http://www.helsinki.fi/~kvehkala/JYTmooc/JYTOPKYS3-data.txt", header = T, sep = '\t')
+
+# the data has 183 observation and 60 variables, all of the variables are of data type numeric except gender which is a factor
+# we can check these using the str and dim methods
+# read. table functions forced gender to be a factor, we can remove that if we want
+
+str(JYTOPKYS3)
+dim(JYTOPKYS3)
+
+# here we are combining questions questions in to deep, surf and stra
+deep <- c("D03", "D11", "D19", "D27", "D07", "D14", "D22", "D30","D06",  "D15", "D23", "D31")
+surf <- c("SU02","SU10","SU18","SU26", "SU05","SU13","SU21","SU29","SU08","SU16","SU24","SU32")
+stra <- c("ST01","ST09","ST17","ST25","ST04","ST12","ST20","ST28")
+
+# since the Attitude variable was a combined one,i.e. a sum of 10 questions, here we are scaling it back by dividing by 10
+JYTOPKYS3$attitude <- JYTOPKYS3$Attitude / 10
+
+# the same as in the Attitude variable we are scaling the deep, surf and stra combined variables by taking their means
+deep_columns <- select(JYTOPKYS3, one_of(deep))
+JYTOPKYS3$deep <- rowMeans(deep_columns)
+
+surf_columns <- select(JYTOPKYS3, one_of(surf))
+JYTOPKYS3$surf <- rowMeans(surf_columns)
+
+stra_columns <- select(JYTOPKYS3, one_of(stra))
+JYTOPKYS3$stra <- rowMeans(stra_columns)
+
+# after the scaling, we will use the scaled variables and also the additional variables gender, age and points  to make a new data frame called d1
+
+vars <- c('gender', 'Age', 'attitude','deep','stra','surf','Points')
+
+d1 <- select(JYTOPKYS3,one_of(vars))
+
+# we are removing rows that have points less than or equal to 0 from d1 and reassigning it ot d1_nonzero
+d1_nonzero <- d1[d1$Points > 0,]
+
+# checking the dim of d1_nonzero
+dim(d1_nonzero)
+
+# set the working directory
+setwd("~/GitHub/IODS-project")
+
+# write dl_nonzero to a file
+write.table(d1_nonzero,file = "data/learning2014.csv", sep = "\t")
+
+# read it again to make sure it is written correctly
+
+l2014_test <- read.table("data/learning2014.csv", header = T, sep = "\t")
+
+# check the written file has correct dimensions and so on
+str(l2014_test)
+
+head(l2014_test)
+```
+
+#### Linear Regression model
+
+- reading dataset
+
+The dataset prepared above was read for further analysis:
+
+```{r}
+l2014 <- read.table("data/learning2014.csv",header=T, sep="\t")
+```
+the dimension and structure was checked using the following methods
+```{r}
+str(l2014)
+dim(l2014)
+```
+166 observations and 7 variables were selected after the data wrangling. It contains Students' information such as gender, age and exam points.
+
+- data overview
+
+using head we can check the first few observations and then summarize the variables to see information such as mean age etc
+```{r}
+head(l2014)
+summary(l2014)
+```
+One way to visualize the relationship between variable is using ggpairs(GGally).
+```{r}
+library(GGally)
+library(ggplot2)
+
+# create a more advanced plot matrix with ggpairs()
+p <- ggpairs(l2014, mapping = aes(), lower = list(combo = wrap("facethist", bins = 20)))
+p 
+```
+we can see correlation coefficients exam point variable with other variables from the ggpairs plot. By selecting the top 3 correlated variables which are attitude, stra and surf we can build the regression model to see if there is a relationship between exam points and these variables.
+
+- Linear regression model
+
+
+```{r}
+point_lm <- lm(Points ~ attitude + stra + surf, data = l2014)
+summary(point_lm)
+```
+The intercept and coefficient for attitude were estimated to be 11.0 and 3.39 respectively. Attitude had a statistically significant relationship with the target variable while the remaining two variables didn't show a statistically significant relationship. Therefore we modify the model such that only attitude is used to explain exam points. 
+```{r}
+point_lm2 <- lm(Points ~ attitude , data = l2014)
+summary(point_lm2)
+
+p <- ggplot(l2014, aes(x = attitude, y = Points)) + geom_point() + stat_smooth(method = "lm", formula = y ~ x, size = 1)
+p
+```
+
+- Model interpretation
+
+The model shows an increase of one unit of attitude increases exam point by 3.5 times. The multiple R-squared measures the target proportion of variance explained by the predictor variable. In this case, the attitude variable explains 0.19 or 19% of the variance in target variable, exam Points. 
+
+
+- diagnostic plots
+
+Assumptions such as linearity and normally distributed error(with constant variance) can be evaluated using certain plots such as qq plot.
+
+```{r}
+par(mfrow = c(2,2))
+plot(point_lm2, which = c(1, 2, 5))
+```
+The residuals vs fitted values plot doesn't show any pattern and residual values more or less fall on the straight line on the Q-Q plot. In addition, it doesn't appear that certain observations have high leverage biasing the model. Therfore our model appears to have satisfied the assumptions made in linear regression model. 
