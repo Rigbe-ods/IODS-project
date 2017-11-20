@@ -98,6 +98,7 @@ library(ggplot2)
 p <- ggpairs(l2014, mapping = aes(), lower = list(combo = wrap("facethist", bins = 20)))
 p 
 ```
+
 we can see correlation coefficients exam point variable with other variables from the ggpairs plot. By selecting the top 3 correlated variables which are attitude, stra and surf we can build the regression model to see if there is a relationship between exam points and these variables.
 
 - Linear regression model
@@ -129,4 +130,5 @@ Assumptions such as linearity and normally distributed error(with constant varia
 par(mfrow = c(2,2))
 plot(point_lm2, which = c(1, 2, 5))
 ```
+
 The residuals vs fitted values plot doesn't show any pattern and residual values more or less fall on the straight line on the Q-Q plot. In addition, it doesn't appear that certain observations have high leverage biasing the model. Therfore our model appears to have satisfied the assumptions made in linear regression model. 
