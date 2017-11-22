@@ -1,0 +1,112 @@
+# Chapter 3:Logistic Regression and cross validation
+
+In this chapter we will be working with logistic Regression. We will use logistic regression to model the relationship between a binary dependent variable(high_use) and 4 independent variables(failures,absences,sex and freetime)
+
+
+The dataset we used in this chapter can be found at [alc](https://archive.ics.uci.edu/ml/datasets/Student+Performance).The dataset contains performance of students from two Portugese highschools in the two subjects, Maths and Portugese.
+
+#### Preparing the dataset for the analysis
+
+The dataset found [here](http://www.helsinki.fi/~kvehkala/JYTmooc/JYTOPKYS3-data.txt) was first preprocessed such that we inner joined the two datasets (mat and por) based on few selected columns. And for columns not used in joining they were either averaged and rounded if they were numeric or the first one was taken if they were not numeric. For details, see https://github.com/Rigbe-ods/IODS-project/blob/master/data/alc.R 
+
+
+
+#### Logisitc Regression model
+
+1- reading dataset
+
+The dataset prepared above was read for further analysis:
+
+```{r}
+alc <- read.table("data/alc.csv",header=T, sep="\t")
+```
+2- data overview
+
+The data overview was checked using colnames. The dataset contained 35 columns related to student performances in two subjects
+```{r}
+colnames(alc)
+```
+3-relationships between high/low alcohol consumption and failures,absences,sex and freetime
+
+Personal hypotheses:
+
+  - failures and absences are related to high alcohol consumption
+  
+  - women have low alcohol consumption than men
+  
+  - students with more freetime have high alcohol consumption
+  
+  
+4- graphical explorations
+```{r}
+library(dplyr)
+library(ggplot2)
+
+# absences vs high_use
+g1 <- ggplot(alc, aes(x = high_use, y = absences))
+g1 + geom_boxplot() + ylab("absences")+ggtitle("Student absences by alcohol consumption")
+
+# failures vs high_use
+g2 <- ggplot(alc, aes(x = failures, fill = high_use))
+g2 + geom_bar() + ylab("failures")+ggtitle("Student failures by alcohol consumption")
+
+# absences vs high_use
+g3 <- ggplot(alc, aes(x = high_use, fill = sex))
+g3 + geom_bar() + ylab("sex")+ggtitle("Student sex by alcohol consumption")
+
+# absences vs high_use
+g4 <- ggplot(alc, aes(x = freetime, fill = high_use))
+g4 + geom_bar() + ylab("freetime")+ggtitle("Student freetimes by alcohol consumption")
+```
+
+The above plots seem to indicate that the personal hypotheses do hold true. But we will need to fit a model to say for sure(i.e. whether or not the relations are statistically significant).
+
+5- Logistic regression model
+
+All the explanantory variables, in agreement with the hypotheses, are statistically significantly related to the dependent variable.So the more the absences and the failures and having more free time and being Male are related to high alcohol consumption (this is seen from the odds ratio, they are all above 1).    
+
+```{r}
+m <- glm(high_use ~ failures + absences+sex+freetime, data = alc, family = "binomial")
+summary(m)
+coef(m)
+OR <- coef(m) %>% exp
+CI <- confint(m) %>% exp
+cbind(OR, CI)
+
+```
+6- predictive power of the model 
+
+The total proportion of inaccurately classified individuals is equal to 0.2591623 (0.03926702+0.21989529) which is the proportion of wrongly predicted as True when the actual values were False and those wrongly classified as False when their actual values were True. At higher probabilities(>0.5) the predictive power of the model improves(see figure).Compared to simple guessing strategy, it performs better especially in the case where for instance most of the actual values are False but we simply guessed True (the loss function would be higher in the guessing strategy in this case as demonstrated by the loss function). 
+```{r}
+probabilities <- predict(m, type = "response")
+
+# add the predicted probabilities to 'alc'
+alc <- mutate(alc, probability = probabilities)
+alc <- mutate(alc, prediction = probability > 0.5)
+# cross tabulation
+table(high_use = alc$high_use, prediction = alc$prediction)%>%prop.table()%>%addmargins
+
+#actual values and predicted values
+g <- ggplot(alc, aes(x = probability, y = high_use,col=prediction))
+
+g+geom_point()
+
+# compare to simple guessing strategy
+loss_func <- function(class, prob) {
+  n_wrong <- abs(class - prob) > 0.5
+  mean(n_wrong)
+}
+
+loss_func(class = alc$high_use, prob = 1)
+
+```
+
+7- cross validation(Bonus)
+
+The 10 fold cross validation doesn't seem to improve the performance of the model as the error is about the same (~0.26)
+```{r}
+library(boot)
+cv <- cv.glm(data = alc, cost = loss_func, glmfit = m, K = 10)
+cv$delta[1]
+```
+
