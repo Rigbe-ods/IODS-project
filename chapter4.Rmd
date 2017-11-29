@@ -1,0 +1,215 @@
+
+# Chapter 4: Clustering and classification
+
+In this chapter, we will do classification and clustering using LDA and Kmeans algorithms respectively. 
+
+- The dataset(Boston) we will be working with comes with the MASS package and we will load that dataset and check what it contains.
+
+```{r}
+library(MASS)
+
+# loading
+data("Boston")
+
+# exploring
+dim(Boston)
+str(Boston)
+head(Boston)
+```
+
+The Boston dataset contains 506 observations with 14 variables that give various information on the housing values in the Boston suburbs such as crime rate. 
+
+- looking at the first few records and summarizing the info
+
+```{r message=FALSE, warning=FALSE}
+head(Boston)
+summary(Boston)
+
+```
+
+The range of values in the variable is different (as can be seen from the summary) so before further analysis, some type of scaling is needed. This is done below.
+
+Next we can look at the correlation between the different variables utilizing the cor function and then plotting these correlation coefficients(corrplot)
+```{r message=FALSE, warning=FALSE}
+library(dplyr)
+library(corrplot)
+
+cor_matrix<-cor(Boston) 
+
+cor_matrix <- cor_matrix %>% round(digits=2) 
+cor_matrix
+
+# plot the correlation matrix
+corrplot(cor_matrix, method="circle",type="upper",tl.pos = "d",tl.cex = 0.8)
+```
+
+From the correlation plot, we can see that the tax and rad variables have strong positive correlation to the crime rate. Strong correlation could be positive or negative. 
+
+
+- scaling the variables
+
+Since the range of values of some variables in the dataset vary widely, we need to standardize the data such that the mean is 0 with unit variance using the scale function (This is just one way of standaridizing, there are also other ways such as making the values fall between certain interval say 0 and 1).
+```{r message=FALSE, warning=FALSE}
+
+# mean scaling
+boston_scaled <- scale(Boston)
+
+summary(boston_scaled)
+class(boston_scaled)
+
+# scaled data(boston_scaled) is a matrix so we are changin to a data frame
+boston_scaled <- as.data.frame(boston_scaled)
+
+
+```
+
+The scaling resulted in variables with a mean of 0, and a standard deviation of 1. 
+
+Next, we categorize the crime data in to 4 classes (low, med_low,med_high and high) by using the quantiles of the values. 
+
+
+```{r message=FALSE, warning=FALSE}
+
+# create the quantile bins
+bins <- quantile(boston_scaled$crim)
+bins
+
+# assign names to the bins and cut the data based on those bins which are the quantiles
+crime <- cut(boston_scaled$crim, breaks = bins, include.lowest = TRUE,labels=c("low","med_low","med_high","high"))
+
+#  remove the original crime data and replace it with the one we just created, so the crime values are now the classes
+boston_scaled <- dplyr::select(boston_scaled, -crim)
+
+boston_scaled <- data.frame(boston_scaled, crime)
+```
+
+Then we sample from the scaled data, to make 80% of the data as a training set and the rest 20% testing set (i.e to test how accurately our methods classify the crime and we know what the real classes of our test data are)
+
+```{r message=FALSE, warning=FALSE}
+
+# we obtain the number of rows to use for sampling 
+n <- nrow(boston_scaled)
+
+# sample 80 percent of the data, i.e. you have the row indices here
+ind <- sample(n,  size = n * 0.8)
+
+# based on those indices we choose our training set
+train <- boston_scaled[ind,]
+
+# the rest is the test data 
+test <- boston_scaled[-ind,]
+
+# we know the correct classes from our test set
+correct_classes <- test$crime
+
+# remove the crime classes, so that we replace them with the predicted values from the next steps
+test <- dplyr::select(test, -crime)
+
+```
+
+- LDA for classification
+
+We fit an LDA model on the crime variable(against all other variables)
+
+```{r message=FALSE, warning=FALSE}
+# lda
+lda.fit <- lda(crime ~ . , data = train)
+
+lda.fit
+
+# plot the lda results
+classes <- as.numeric(train$crime)
+plot(lda.fit, dimen = 2,col = classes,pch=classes)
+
+
+```
+
+- Predicting crime 
+
+Now it is time to predict crime and check it against the true values we have in our test set.Cross tabulations are a convenient way to check the number of correctly/incorrectly classified features. 
+
+```{r message=FALSE, warning=FALSE}
+lda.pred <- predict(lda.fit, newdata = test)
+
+# cross tabulate the results
+table(correct = correct_classes, predicted = lda.pred$class)
+
+```
+
+The predictor seems to underpeform for the med_low and med_high classes (which might actually be hard to separate with a linear discriminator). On the other hand, it has made correct predictions for the high (and also relatively the low classes).
+
+- Kmeans clustering 
+
+In the Kmeans clustering, finding the optiaml K is one of the key goals. In this exercies we have utilized the with in sum of squares to identify the K that will minimize this error. We start with k=3 but later we determine the optimal K to be 2 (after checking k 1:10) and we rerun our kmeans clustering with this value.  
+
+```{r message=FALSE, warning=FALSE}
+library(ggplot2)
+
+data('Boston')
+boston_scaled <- scale(Boston)
+
+# euclidean distance matrix
+dist_eu <- dist(boston_scaled)
+summary(dist_eu)
+
+# k-means clustering
+km <-kmeans(boston_scaled, centers = 3)
+
+pairs(Boston[6:10], col = km$cluster)
+
+
+# determine the number of clusters
+k_max <- 10
+
+# calculate the total within sum of squares
+twcss <- sapply(1:k_max, function(k){kmeans(boston_scaled, k)$tot.withinss})
+
+# visualize the results
+qplot(x = 1:k_max, y = twcss, geom = 'line')
+
+# k-means clustering
+km2 <-kmeans(boston_scaled, centers = 2)
+pairs(Boston[2:5], col = km2$cluster)
+
+```
+
+We see a sharp drop at k~2, so we have chosen this to be the optimal k. However, it might still be good to check other k values.
+
+- Bonus
+
+We can do LDA on the Boston dataset using k-means assigned clusters as the target variable. We run kmeans on the scaled data (boston_scaled) with k = 3. We then add the cluster result to the data. Then we fit LDA as follows:  
+
+```{r message=FALSE, warning=FALSE}
+set.seed(80)
+# k-means clustering
+km2 <-kmeans(boston_scaled, centers = 3,iter.max=20)
+
+boston_scaled <- data.frame(boston_scaled, cluster=km2$cluster)
+
+# linear discriminant analysis
+ldaWithKm <- lda(cluster ~ . , data = boston_scaled)
+ldaWithKm
+
+# the function for lda biplot arrows: function copied from datacamp exercise
+lda.arrows <- function(x, myscale = 1, arrow_heads = 0.1, color = "red", tex = 0.75, choices = c(1,2)){
+  heads <- coef(x)
+  arrows(x0 = 0, y0 = 0, 
+         x1 = myscale * heads[,choices[1]], 
+         y1 = myscale * heads[,choices[2]], col=color, length = arrow_heads)
+  text(myscale * heads[,choices], labels = row.names(heads), 
+       cex = tex, col=color, pos=3)
+}
+
+# plot the lda results
+plot(ldaWithKm, dimen = 2,col = boston_scaled$cluster)
+lda.arrows(ldaWithKm, myscale = 3)
+
+```
+
+Cluster 1 is influenced most by variable age, cluster 2 by variables such as zn and rm, and cluster 3 by variables such as indus,tax and nox.
+
+
+#### Data wrangling for next week data
+The R script utilized for wrangling next week's data can be found at (https://github.com/rigbe-ods/IODS-project/blob/master/data/create_human.R). The human dataset after the data wrangling can be found (https://github.com/rigbe-ods/IODS-project/blob/master/data/human.txt)
+
+
