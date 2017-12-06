@@ -1,4 +1,4 @@
-# Chapter 2:Regression and model validation
+## Chapter 2:Regression and model validation
 
 In this chapter we will be working with Linear Regression. We will use Linear regression to model the relationship between a dependent variable(exam points) and 3 independent variables including attitude and various kinds of questions (which are the top 3 correlated variables with our dependent variable).
 

@@ -33,3 +33,7 @@ output:
 ```
 
 ***
+```{r message=FALSE, warning=FALSE,child = "chapter5.Rmd"}
+```
+
+***

@@ -1,0 +1,129 @@
+---
+fig_caption: yes
+---
+
+## Chapter 5: Dimensionality reduction techniques
+
+In this chapter, we will look at ways on how we can reduce high dimensionality by employing components that explain the variability of the data. 
+
+- We will be working with the Human Development Index data which contains information about health, knowledge and standard of living such  as maternal mortality rate, the ratio of females to males with at leaset secondary education etc.We will load that dataset and check what it contains.
+
+```{r}
+
+# loading
+human = read.table("data/human.txt", sep="\t")
+
+# exploring
+dim(human)
+str(human)
+head(human)
+```
+
+The human dataset contains 155 observations with 8 variables 
+
+- a graphical overview of the data and summaries
+
+```{r message=FALSE, warning=FALSE}
+library(GGally)
+
+summary(human)
+ggpairs(human)
+
+```
+
+The ratio of female to male with at least secondary education is bigger than the ratio of female to male in the labour force. The percentage of women in parliament is  ~20% which is very low (it is not even 50/50). 
+
+The maternal mortality rate and Life expectancy are highly negatively correlated as expected(-0.857) while expected education in years is highly positively correlated to life expectancy(0.789).The GNI is right skewed(most of the countires studied have low GNI) 
+
+- perform pca
+```{r message=FALSE, warning=FALSE,fig.cap = "Figure:PCA unstandardized data. The first principal component is mainly affected by GNI which has high variability"}
+
+# perform principal component analysis (with the SVD method)
+pca_human <- prcomp(human)
+
+# to see the variability captured by the PCs, 
+summary(pca_human)
+
+# plot the biplot of the pca results
+
+pca_pr <- round(100*summary(pca_human)$importance[2, ], digits = 1)
+pc_lab <- paste0(names(pca_pr), " (", pca_pr, "%)")
+
+# biplot of the new pca results
+biplot(pca_human, choices = 1:2,cex = c(0.5, 0.6),col = c("grey40", "deeppink2"),xlab = pc_lab[1], ylab = pc_lab[2])
+
+
+
+
+```
+
+The first PC captures almost all of the variability (~99.99%) and the first two components together capture 100% of the variability (this is possibly due to the lack of standardization which biases our pca).  
+
+- PCA on the standardized human dataset and interpretation
+
+Since the range of values of some variables in the dataset vary widely, we need to standardize the data such that the mean is 0 with unit variance using the scale function. 
+
+```{r message=FALSE, warning=FALSE,fig.cap = "Figure:PCA standardized data. Variables realted to education, and variables related to health contribute more to the first principal component while variable related to labour such as labor force and parliament participation contribue more to the second pc." }
+
+# scaling the human data
+human_std <- scale(human)
+
+# pca on the standardized version
+pca_humanstd <- prcomp(human_std)
+
+pca_pr <- round(100*summary(pca_humanstd)$importance[2, ], digits = 1)
+pc_lab <- paste0(names(pca_pr), " (", pca_pr, "%)")
+
+# biplot of the new pca results
+biplot(pca_humanstd, choices = 1:2,cex = c(0.5, 0.6),col = c("grey40", "deeppink2"),xlab = pc_lab[1], ylab = pc_lab[2])
+
+
+```
+
+
+The scaling changed the pca results, i.e. the proportion of variance explained by the first pc is now only ~54% and that of the second pc is ~16% (so the first two components explain ~70% of the variability).Standardization removes the bias introduced by variables that contain a wide range of values 
+
+- Multiple Correspondence Analysis on the tea data
+
+
+```{r message=FALSE, warning=FALSE}
+
+# loading the tea dataset
+library(FactoMineR)
+library(dplyr)
+library(tidyr)
+library(ggplot2)
+data("tea")
+
+# explore the tea dataset, the tea dataset contains 300 observations and 36 variables
+str(tea)
+summary(tea)
+
+
+# visualize the dataset, after selecting few columns
+# column names to keep in the dataset
+keep_columns <- c("Tea", "How", "how", "sugar", "where", "lunch")
+
+tea_time <- dplyr::select(tea, one_of(keep_columns))
+
+tidyr::gather(tea_time) %>% ggplot(aes(value)) + facet_wrap("key", scales = "free")+geom_bar()+theme(axis.text.x = element_text(angle = 45, hjust = 1, size = 8))
+
+# multiple correspondence analysis
+mca <- MCA(tea_time, graph = FALSE)
+
+# summary of the model
+summary(mca)
+
+# look at the summaries and structure of the data
+summary(tea_time)
+str(tea_time)
+
+# variable biplot 
+plot(mca, invisible=c("ind"))
+
+
+
+```
+
+
+The variables (individuals) that are close on the factor map are more similar therefore for instance earl grey tea is usually drank with sugar.

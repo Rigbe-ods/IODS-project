@@ -1,5 +1,5 @@
 
-# Chapter 4: Clustering and classification
+## Chapter 4: Clustering and classification
 
 In this chapter, we will do classification and clustering using LDA and Kmeans algorithms respectively. 
 

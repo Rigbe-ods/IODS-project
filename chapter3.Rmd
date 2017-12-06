@@ -1,4 +1,4 @@
-# Chapter 3:Logistic Regression and cross validation
+## Chapter 3:Logistic Regression and cross validation
 
 In this chapter we will be working with logistic Regression. We will use logistic regression to model the relationship between a binary dependent variable(high_use) and 4 independent variables(failures,absences,sex and freetime)
 
